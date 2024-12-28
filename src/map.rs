@@ -16,6 +16,7 @@ const RIGHT: CoordDiff2 = CoordDiff2::new(1, 0);
 pub enum Tile {
     Floor,
     Wall,
+    Monster,
     // Coin,
     // Exit,
 }
@@ -31,11 +32,7 @@ impl Map {
         for _i_x in 0..screen_tiles.x {
             let mut column = Vec::new();
             for _i_y in 0..screen_tiles.y {
-                column.push(if rand() % 2 == 0 {
-                    Tile::Wall
-                } else {
-                    Tile::Floor
-                });
+                column.push(Self::generate_tile());
             }
             tiles.push(column);
         }
@@ -45,7 +42,12 @@ impl Map {
             offset,
             player,
         };
-        *map.get_mut(player) = Tile::Floor;
+        for i_x in 0..screen_tiles.x {
+            *map.get_mut(Coord2::new(i_x, player.y)) = Tile::Floor;
+        }
+        for i_y in 0..screen_tiles.y {
+            *map.get_mut(Coord2::new(player.x, i_y)) = Tile::Floor;
+        }
         map
     }
 
@@ -87,22 +89,14 @@ impl Map {
         assert!(self.in_range_y(i_y));
         let i_y = i_y as Coord;
         for i_x in 0..self.size().x {
-            *self.get_mut(Coord2::new(i_x, i_y)) = if rand() % 2 == 0 {
-                Tile::Wall
-            } else {
-                Tile::Floor
-            };
+            *self.get_mut(Coord2::new(i_x, i_y)) = Self::generate_tile();
         }
     }
     fn replace_column(&mut self, i_x: i32) {
         assert!(self.in_range_x(i_x));
         let i_x = i_x as Coord;
         for i_y in 0..self.size().y {
-            *self.get_mut(Coord2::new(i_x, i_y)) = if rand() % 2 == 0 {
-                Tile::Wall
-            } else {
-                Tile::Floor
-            };
+            *self.get_mut(Coord2::new(i_x, i_y)) = Self::generate_tile();
         }
     }
 
@@ -153,5 +147,15 @@ impl Map {
     }
     fn in_range_x(&self, x: CoordDiff) -> bool {
         0 <= x && x < self.size().x as CoordDiff
+    }
+    fn generate_tile() -> Tile {
+        let random = rand() % 100;
+        if random < 49 {
+            Tile::Wall
+        } else if random < 98 {
+            Tile::Floor
+        } else {
+            Tile::Monster
+        }
     }
 }

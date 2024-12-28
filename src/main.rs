@@ -1,5 +1,6 @@
 mod map;
 
+use crate::map::Tile;
 use crate::map::{Coord, Coord2, Map};
 use macroquad::prelude::*;
 
@@ -14,6 +15,7 @@ type Pixels2 = Vec2;
 const COLOR_BACKGROUND: Color = color_from_hex(0x3E93CCFF);
 const COLOR_WALL: Color = color_from_hex(0xE4A84EFF);
 const COLOR_PLAYER: Color = color_from_hex(0x45D945FF);
+const COLOR_MONSTER: Color = color_from_hex(0x9F3DB8FF);
 
 #[macroquad::main(window_conf)]
 async fn main() {
@@ -51,10 +53,22 @@ async fn main() {
         }
         for i_x in 0..screen_tiles.x {
             for i_y in 0..screen_tiles.y {
-                if map.is_wall(i_x, i_y) {
-                    let pixel = tile_to_pixel(i_x, i_y, tile_size);
-                    draw_rectangle(pixel.x, pixel.y, tile_size.x, tile_size.y, COLOR_WALL)
-                }
+                let tile = map.get(Coord2::new(i_x, i_y));
+
+                let pixel = tile_to_pixel(i_x, i_y, tile_size);
+                match tile {
+                    Tile::Wall => {
+                        draw_rectangle(pixel.x, pixel.y, tile_size.x, tile_size.y, COLOR_WALL)
+                    }
+                    Tile::Monster => {
+                        let top = pixel + Vec2::new(tile_size.x * 0.5, tile_size.y * 0.2);
+                        let left = pixel + Vec2::new(tile_size.x * 0.2, tile_size.y * 0.8);
+                        let right = pixel + Vec2::new(tile_size.x * 0.8, tile_size.y * 0.8);
+                        draw_triangle(top, left, right, COLOR_MONSTER);
+                    }
+
+                    _ => {}
+                };
             }
         }
 
