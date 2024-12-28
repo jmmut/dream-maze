@@ -1,3 +1,6 @@
+mod map;
+
+use crate::map::{Coord, Coord2, Map};
 use macroquad::prelude::*;
 use macroquad::rand::rand;
 
@@ -14,22 +17,23 @@ const COLOR_PLAYER: Color = color_from_hex(0x45D945FF);
 
 #[macroquad::main(window_conf)]
 async fn main() {
+    macroquad::rand::srand(42000);
     let tile_size = Pixels2::new(32.0, 32.0);
-    let screen_tiles = IVec2::new(
-        (screen_width() / tile_size.x) as i32,
-        (screen_height() / tile_size.y) as i32,
+    let screen_tiles = Coord2::new(
+        (screen_width() / tile_size.x) as Coord,
+        (screen_height() / tile_size.y) as Coord,
     );
     let player = screen_tiles / 2;
+    let map = Map::new(screen_tiles, player);
 
     loop {
-        macroquad::rand::srand(42000);
         clear_background(COLOR_BACKGROUND);
         if is_key_down(KeyCode::Escape) {
             break;
         }
         for i_x in 0..screen_tiles.x {
             for i_y in 0..screen_tiles.y {
-                if rand() % 2 == 0 {
+                if map.is_wall(i_x, i_y) {
                     draw_rectangle(
                         i_x as f32 * tile_size.x,
                         i_y as f32 * tile_size.y,
@@ -61,15 +65,6 @@ fn window_conf() -> Conf {
     }
 }
 
-fn random_color() -> Color {
-    Color::from_rgba(
-        (rand() % 256) as u8,
-        (rand() % 256) as u8,
-        (rand() % 256) as u8,
-        255,
-    )
-}
-
 const fn color_from_hex(mut hex: u32) -> Color {
     let a = (hex & 0xFF) as u8;
     hex >>= 8;
@@ -80,6 +75,7 @@ const fn color_from_hex(mut hex: u32) -> Color {
     let r = (hex & 0xFF) as u8;
     color_from_rgba(r, g, b, a)
 }
+
 pub const fn color_from_rgba(r: u8, g: u8, b: u8, a: u8) -> Color {
     Color::new(
         r as f32 / 255.,
