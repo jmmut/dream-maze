@@ -25,7 +25,7 @@ async fn main() {
     println!("map size: {:?}", screen_tiles);
     let player = screen_tiles / 2;
     let mut map = Map::new(screen_tiles, player);
-
+    let mut frame = 0;
     loop {
         clear_background(LIGHTGRAY);
         let end_of_map = tile_to_pixel(screen_tiles.x, screen_tiles.y, tile_size);
@@ -51,6 +51,11 @@ async fn main() {
             let tile = map.get(clicked_tile);
             println!("tile at {:?} is {:?}", clicked_tile, tile);
         }
+
+        if (frame + 1) % 60 == 0 {
+            map.advance();
+        }
+
         for i_x in 0..screen_tiles.x {
             for i_y in 0..screen_tiles.y {
                 let tile = map.get(Coord2::new(i_x, i_y));
@@ -76,6 +81,7 @@ async fn main() {
         pixel += tile_size * 0.5; // circle position is the center
         draw_circle(pixel.x, pixel.y, 10.0, COLOR_PLAYER);
 
+        frame = (frame + 1) % 10000;
         next_frame().await
     }
 }

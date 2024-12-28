@@ -24,6 +24,7 @@ pub struct Map {
     tiles: Vec<Vec<Tile>>,
     offset: Coord2,
     player: Coord2,
+    // player_health: f32,
 }
 
 impl Map {
@@ -110,6 +111,33 @@ impl Map {
             (pos.y + self.offset.y) % size_y,
         )
     }
+    pub fn advance(&mut self) {
+        let mut staring_monsters = Vec::new();
+        for (i_x, column) in self.tiles.iter().enumerate() {
+            for (i_y, tile) in column.iter().enumerate() {
+                let monster = self.add_coord(
+                    Coord2::new(i_x as u32, i_y as u32),
+                    -CoordDiff2::new(self.offset.x as i32, self.offset.y as i32),
+                );
+                if *tile == Tile::Monster {
+                    if (self.player.x == monster.x) != (self.player.y == monster.y) {
+                        staring_monsters.push(monster);
+                    }
+                }
+            }
+        }
+        for monster_old_pos in staring_monsters {
+            let (dir, visible) = self.can_view(monster_old_pos, self.player);
+            if visible {
+                let monster_new_pos = self.add_coord(monster_old_pos, dir);
+                let monster_new = self.get_mut(monster_new_pos);
+                if *monster_new == Tile::Floor {
+                    *monster_new = Tile::Monster;
+                    *self.get_mut(monster_old_pos) = Tile::Floor;
+                }
+            }
+        }
+    }
 }
 impl Map {
     fn get_raw(&self, x: Coord, y: Coord) -> Tile {
@@ -132,7 +160,7 @@ impl Map {
         )
     }
     fn size(&self) -> Coord2 {
-        Coord2::new(self.tiles.len() as Coord, self.tiles[0].len() as Coord)
+        size(&self.tiles)
     }
     fn add_coord(&self, pos: Coord2, diff: CoordDiff2) -> Coord2 {
         let size = self.size();
@@ -148,6 +176,32 @@ impl Map {
     fn in_range_x(&self, x: CoordDiff) -> bool {
         0 <= x && x < self.size().x as CoordDiff
     }
+    /// returns the direction of pos->target and whether that path is unobstructed
+    fn can_view(&self, mut pos: Coord2, mut target: Coord2) -> (CoordDiff2, bool) {
+        assert_ne!(pos, target);
+        assert!(pos.x == target.x || pos.y == target.y);
+        if pos.x == target.x {
+            let dir = if target.y > pos.y { DOWN } else { UP };
+            while pos.y != target.y {
+                pos = self.add_coord(pos, dir);
+                if self.get(pos) == Tile::Wall {
+                    return (dir, false);
+                }
+            }
+            return (dir, true);
+        } else if pos.y == target.y {
+            let dir = if target.x > pos.x { RIGHT } else { LEFT };
+            while pos.x != target.x {
+                pos = self.add_coord(pos, dir);
+                if self.get(pos) == Tile::Wall {
+                    return (dir, false);
+                }
+            }
+            return (dir, true);
+        } else {
+            unreachable!()
+        }
+    }
     fn generate_tile() -> Tile {
         let random = rand() % 100;
         if random < 49 {
@@ -158,4 +212,30 @@ impl Map {
             Tile::Monster
         }
     }
+}
+
+fn add_coord(tiles: &Vec<Vec<Tile>>, pos: Coord2, diff: CoordDiff2) -> Coord2 {
+    let size = size(tiles);
+    let unsigned_diff = Coord2::new(
+        (diff.x + size.x as CoordDiff) as Coord,
+        (diff.y + size.y as CoordDiff) as Coord,
+    );
+    (pos + unsigned_diff) % size
+}
+fn get_raw_mut(tiles: &mut Vec<Vec<Tile>>, x: Coord, y: Coord) -> &mut Tile {
+    tiles.index_mut(x as usize).index_mut(y as usize)
+}
+fn get_mut(tiles: &mut Vec<Vec<Tile>>, pos: Coord2, offset: Coord2) -> &mut Tile {
+    let Coord2 {
+        x: size_x,
+        y: size_y,
+    } = size(tiles);
+    get_raw_mut(
+        tiles,
+        (pos.x + offset.x) % size_x,
+        (pos.y + offset.y) % size_y,
+    )
+}
+fn size(tiles: &Vec<Vec<Tile>>) -> Coord2 {
+    Coord2::new(tiles.len() as Coord, tiles[0].len() as Coord)
 }
