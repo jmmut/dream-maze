@@ -17,6 +17,8 @@ const COLOR_WALL: Color = color_from_hex(0xE4A84EFF);
 const COLOR_PLAYER: Color = color_from_hex(0x45D945FF);
 const COLOR_MONSTER: Color = color_from_hex(0x9F3DB8FF);
 
+const MAX_HEALTH: f32 = 5.0;
+
 #[macroquad::main(window_conf)]
 async fn main() {
     macroquad::rand::srand(42000);
@@ -24,6 +26,7 @@ async fn main() {
     let screen_tiles = pixel_to_tile(screen_width(), screen_height(), tile_size);
     println!("map size: {:?}", screen_tiles);
     let player = screen_tiles / 2;
+    let mut player_health = MAX_HEALTH;
     let mut map = Map::new(screen_tiles, player);
     let mut frame = 0;
     loop {
@@ -54,6 +57,9 @@ async fn main() {
 
         if (frame + 1) % 60 == 0 {
             map.advance();
+            if map.get(map.player) == Tile::Monster {
+                player_health = 0.0_f32.max(player_health - 1.0);
+            }
         }
 
         for i_x in 0..screen_tiles.x {
@@ -80,6 +86,22 @@ async fn main() {
         let mut pixel = tile_to_pixel(player.x, player.y, tile_size);
         pixel += tile_size * 0.5; // circle position is the center
         draw_circle(pixel.x, pixel.y, 10.0, COLOR_PLAYER);
+
+        let health_unit: Pixels = 20.0;
+        draw_rectangle(
+            10.0,
+            10.0,
+            MAX_HEALTH * health_unit + 4.0,
+            health_unit + 4.0,
+            DARKGRAY,
+        );
+        draw_rectangle(
+            12.0,
+            12.0,
+            player_health * health_unit,
+            health_unit,
+            COLOR_PLAYER,
+        );
 
         frame = (frame + 1) % 10000;
         next_frame().await

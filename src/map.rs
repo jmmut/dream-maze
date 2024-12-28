@@ -23,8 +23,7 @@ pub enum Tile {
 pub struct Map {
     tiles: Vec<Vec<Tile>>,
     offset: Coord2,
-    player: Coord2,
-    // player_health: f32,
+    pub player: Coord2,
 }
 
 impl Map {
