@@ -7,6 +7,7 @@ const DEFAULT_WINDOW_WIDTH: i32 = 800;
 const DEFAULT_WINDOW_HEIGHT: i32 = 600;
 const DEFAULT_WINDOW_TITLE: &str = "Dream Maze";
 
+type Pixels = f32;
 type Pixels2 = Vec2;
 
 // https://supercolorpalette.com/?scp=G0-hsl-E4A84E-B2DF49-45D945-41D2A7-3E93CC
@@ -18,15 +19,15 @@ const COLOR_PLAYER: Color = color_from_hex(0x45D945FF);
 async fn main() {
     macroquad::rand::srand(42000);
     let tile_size = Pixels2::new(32.0, 32.0);
-    let screen_tiles = Coord2::new(
-        (screen_width() / tile_size.x) as Coord,
-        (screen_height() / tile_size.y) as Coord,
-    );
+    let screen_tiles = pixel_to_tile(screen_width(), screen_height(), tile_size);
+    println!("map size: {:?}", screen_tiles);
     let player = screen_tiles / 2;
     let mut map = Map::new(screen_tiles, player);
 
     loop {
-        clear_background(COLOR_BACKGROUND);
+        clear_background(LIGHTGRAY);
+        let end_of_map = tile_to_pixel(screen_tiles.x, screen_tiles.y, tile_size);
+        draw_rectangle(0.0, 0.0, end_of_map.x, end_of_map.y, COLOR_BACKGROUND);
         if is_key_down(KeyCode::Escape) {
             break;
         }
@@ -42,28 +43,34 @@ async fn main() {
         if is_key_pressed(KeyCode::Right) {
             map.move_right()
         }
+        if is_mouse_button_released(MouseButton::Left) {
+            let click = Vec2::from(mouse_position());
+            let clicked_tile = pixel_to_tile(click.x, click.y, tile_size);
+            let tile = map.get(clicked_tile);
+            println!("tile at {:?} is {:?}", clicked_tile, tile);
+        }
         for i_x in 0..screen_tiles.x {
             for i_y in 0..screen_tiles.y {
                 if map.is_wall(i_x, i_y) {
-                    draw_rectangle(
-                        i_x as f32 * tile_size.x,
-                        i_y as f32 * tile_size.y,
-                        tile_size.x,
-                        tile_size.y,
-                        COLOR_WALL,
-                    )
+                    let pixel = tile_to_pixel(i_x, i_y, tile_size);
+                    draw_rectangle(pixel.x, pixel.y, tile_size.x, tile_size.y, COLOR_WALL)
                 }
             }
         }
-        draw_circle(
-            (player.x as f32 + 0.5) * tile_size.x,
-            (player.y as f32 + 0.5) * tile_size.y,
-            10.0,
-            COLOR_PLAYER,
-        );
+
+        let mut pixel = tile_to_pixel(player.x, player.y, tile_size);
+        pixel += tile_size * 0.5; // circle position is the center
+        draw_circle(pixel.x, pixel.y, 10.0, COLOR_PLAYER);
 
         next_frame().await
     }
+}
+
+fn pixel_to_tile(x: Pixels, y: Pixels, tile_size: Pixels2) -> Coord2 {
+    Coord2::new((x / tile_size.x) as Coord, (y / tile_size.y) as Coord)
+}
+fn tile_to_pixel(x: Coord, y: Coord, tile_size: Pixels2) -> Pixels2 {
+    Pixels2::new(x as Pixels * tile_size.x, y as Pixels * tile_size.y)
 }
 
 fn window_conf() -> Conf {

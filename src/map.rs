@@ -12,7 +12,7 @@ const UP: CoordDiff2 = CoordDiff2::new(0, -1);
 const LEFT: CoordDiff2 = CoordDiff2::new(-1, 0);
 const RIGHT: CoordDiff2 = CoordDiff2::new(1, 0);
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Tile {
     Floor,
     Wall,
@@ -70,12 +70,7 @@ impl Map {
             self.offset = self.add_coord(self.offset, diff)
         }
     }
-}
-impl Map {
-    fn get_raw(&self, x: Coord, y: Coord) -> Tile {
-        self.tiles[x as usize][y as usize]
-    }
-    fn get(&self, pos: Coord2) -> Tile {
+    pub fn get(&self, pos: Coord2) -> Tile {
         let Coord2 {
             x: size_x,
             y: size_y,
@@ -84,6 +79,11 @@ impl Map {
             (pos.x + self.offset.x) % size_x,
             (pos.y + self.offset.y) % size_y,
         )
+    }
+}
+impl Map {
+    fn get_raw(&self, x: Coord, y: Coord) -> Tile {
+        self.tiles[x as usize][y as usize]
     }
     fn get_rel(&self, pos: Coord2, diff: CoordDiff2) -> Tile {
         self.get(self.add_coord(pos, diff))
