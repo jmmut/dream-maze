@@ -2,7 +2,6 @@ mod map;
 
 use crate::map::{Coord, Coord2, Map};
 use macroquad::prelude::*;
-use macroquad::rand::rand;
 
 const DEFAULT_WINDOW_WIDTH: i32 = 800;
 const DEFAULT_WINDOW_HEIGHT: i32 = 600;
@@ -24,12 +23,24 @@ async fn main() {
         (screen_height() / tile_size.y) as Coord,
     );
     let player = screen_tiles / 2;
-    let map = Map::new(screen_tiles, player);
+    let mut map = Map::new(screen_tiles, player);
 
     loop {
         clear_background(COLOR_BACKGROUND);
         if is_key_down(KeyCode::Escape) {
             break;
+        }
+        if is_key_pressed(KeyCode::Down) {
+            map.move_down()
+        }
+        if is_key_pressed(KeyCode::Up) {
+            map.move_up()
+        }
+        if is_key_pressed(KeyCode::Left) {
+            map.move_left()
+        }
+        if is_key_pressed(KeyCode::Right) {
+            map.move_right()
         }
         for i_x in 0..screen_tiles.x {
             for i_y in 0..screen_tiles.y {
