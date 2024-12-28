@@ -1,6 +1,6 @@
 use macroquad::prelude::*;
 
-#[macroquad::main("MY_CRATE_NAME")]
+#[macroquad::main("dream-maze")]
 async fn main() {
     loop {
         clear_background(RED);
