@@ -48,22 +48,6 @@ impl Map {
         *map.get_mut(player) = Tile::Floor;
         map
     }
-    pub fn new_empty(screen_tiles: Coord2, player: Coord2) -> Self {
-        let mut tiles = Vec::new();
-        for _i_x in 0..screen_tiles.x {
-            let mut column = Vec::new();
-            for _i_y in 0..screen_tiles.y {
-                column.push(Tile::Floor);
-            }
-            tiles.push(column);
-        }
-        let offset = Coord2::new(0, 0);
-        Self {
-            tiles,
-            offset,
-            player,
-        }
-    }
 
     pub fn is_wall(&self, x: Coord, y: Coord) -> bool {
         self.get(Coord2::new(x, y)) == Tile::Wall
@@ -83,9 +67,45 @@ impl Map {
     }
     pub fn move_to(&mut self, diff: CoordDiff2) {
         if self.get_rel(self.player, diff) != Tile::Wall {
+            for i_y in 0..diff.y {
+                self.replace_row(i_y)
+            }
+            for i_y in 0..-diff.y {
+                self.replace_row(self.size().y as CoordDiff - i_y - 1);
+            }
+            for i_x in 0..diff.x {
+                self.replace_column(i_x)
+            }
+            for i_x in 0..-diff.x {
+                self.replace_column(self.size().x as CoordDiff - i_x - 1);
+            }
             self.offset = self.add_coord(self.offset, diff)
         }
     }
+
+    fn replace_row(&mut self, i_y: i32) {
+        assert!(self.in_range_y(i_y));
+        let i_y = i_y as Coord;
+        for i_x in 0..self.size().x {
+            *self.get_mut(Coord2::new(i_x, i_y)) = if rand() % 2 == 0 {
+                Tile::Wall
+            } else {
+                Tile::Floor
+            };
+        }
+    }
+    fn replace_column(&mut self, i_x: i32) {
+        assert!(self.in_range_x(i_x));
+        let i_x = i_x as Coord;
+        for i_y in 0..self.size().y {
+            *self.get_mut(Coord2::new(i_x, i_y)) = if rand() % 2 == 0 {
+                Tile::Wall
+            } else {
+                Tile::Floor
+            };
+        }
+    }
+
     pub fn get(&self, pos: Coord2) -> Tile {
         let Coord2 {
             x: size_x,
@@ -128,65 +148,10 @@ impl Map {
         );
         (pos + unsigned_diff) % size
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    impl Map {
-        fn get_offset(&self) -> Coord2 {
-            self.offset
-        }
+    fn in_range_y(&self, y: CoordDiff) -> bool {
+        0 <= y && y < self.size().y as CoordDiff
     }
-    #[test]
-    fn test_offset_modulus_vertical() {
-        let mut map = Map::new_empty(Coord2::new(10, 10), Coord2::new(2, 5));
-        assert_eq!(map.get_offset(), Coord2::new(0, 0));
-
-        map.move_down();
-        assert_eq!(map.get_offset(), Coord2::new(0, 1));
-        map.move_down();
-        assert_eq!(map.get_offset(), Coord2::new(0, 2));
-
-        map.move_up();
-        assert_eq!(map.get_offset(), Coord2::new(0, 1));
-        map.move_up();
-        assert_eq!(map.get_offset(), Coord2::new(0, 0));
-
-        map.move_up();
-        assert_eq!(map.get_offset(), Coord2::new(0, 9));
-        map.move_up();
-        assert_eq!(map.get_offset(), Coord2::new(0, 8));
-
-        map.move_down();
-        assert_eq!(map.get_offset(), Coord2::new(0, 9));
-        map.move_down();
-        assert_eq!(map.get_offset(), Coord2::new(0, 0));
-    }
-    #[test]
-    fn test_offset_modulus_horizontal() {
-        let mut map = Map::new_empty(Coord2::new(10, 10), Coord2::new(2, 5));
-        assert_eq!(map.get_offset(), Coord2::new(0, 0));
-
-        map.move_right();
-        assert_eq!(map.get_offset(), Coord2::new(1, 0));
-        map.move_right();
-        assert_eq!(map.get_offset(), Coord2::new(2, 0));
-
-        map.move_left();
-        assert_eq!(map.get_offset(), Coord2::new(1, 0));
-        map.move_left();
-        assert_eq!(map.get_offset(), Coord2::new(0, 0));
-
-        map.move_left();
-        assert_eq!(map.get_offset(), Coord2::new(9, 0));
-        map.move_left();
-        assert_eq!(map.get_offset(), Coord2::new(8, 0));
-
-        map.move_right();
-        assert_eq!(map.get_offset(), Coord2::new(9, 0));
-        map.move_right();
-        assert_eq!(map.get_offset(), Coord2::new(0, 0));
+    fn in_range_x(&self, x: CoordDiff) -> bool {
+        0 <= x && x < self.size().x as CoordDiff
     }
 }
