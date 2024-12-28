@@ -48,6 +48,22 @@ impl Map {
         *map.get_mut(player) = Tile::Floor;
         map
     }
+    pub fn new_empty(screen_tiles: Coord2, player: Coord2) -> Self {
+        let mut tiles = Vec::new();
+        for _i_x in 0..screen_tiles.x {
+            let mut column = Vec::new();
+            for _i_y in 0..screen_tiles.y {
+                column.push(Tile::Floor);
+            }
+            tiles.push(column);
+        }
+        let offset = Coord2::new(0, 0);
+        Self {
+            tiles,
+            offset,
+            player,
+        }
+    }
 
     pub fn is_wall(&self, x: Coord, y: Coord) -> bool {
         self.get(Coord2::new(x, y)) == Tile::Wall
@@ -125,7 +141,7 @@ mod tests {
     }
     #[test]
     fn test_offset_modulus_vertical() {
-        let mut map = Map::new(Coord2::new(10, 10), Coord2::new(2, 5));
+        let mut map = Map::new_empty(Coord2::new(10, 10), Coord2::new(2, 5));
         assert_eq!(map.get_offset(), Coord2::new(0, 0));
 
         map.move_down();
@@ -150,7 +166,7 @@ mod tests {
     }
     #[test]
     fn test_offset_modulus_horizontal() {
-        let mut map = Map::new(Coord2::new(10, 10), Coord2::new(2, 5));
+        let mut map = Map::new_empty(Coord2::new(10, 10), Coord2::new(2, 5));
         assert_eq!(map.get_offset(), Coord2::new(0, 0));
 
         map.move_right();
