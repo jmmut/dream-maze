@@ -90,90 +90,15 @@ async fn main() {
             }
         }
 
-        for i_x in 0..screen_tiles.x {
-            for i_y in 0..screen_tiles.y {
-                let tile = map.get(Coord2::new(i_x, i_y));
-
-                let pixel = tile_to_pixel(i_x, i_y, tile_size);
-                match tile {
-                    Tile::Wall => {
-                        draw_rectangle(pixel.x, pixel.y, tile_size.x, tile_size.y, COLOR_WALL)
-                    }
-                    Tile::Monster => {
-                        let top = pixel + Vec2::new(tile_size.x * 0.5, tile_size.y * 0.2);
-                        let left = pixel + Vec2::new(tile_size.x * 0.2, tile_size.y * 0.8);
-                        let right = pixel + Vec2::new(tile_size.x * 0.8, tile_size.y * 0.8);
-                        draw_triangle(top, left, right, COLOR_MONSTER);
-                    }
-
-                    _ => {}
-                };
-            }
-        }
-
-        let mut pixel = tile_to_pixel(player.x, player.y, tile_size);
-        pixel += tile_size * 0.5; // circle position is the center
-        draw_circle(pixel.x, pixel.y, 10.0, COLOR_PLAYER);
-
-        let health_unit: Pixels = 20.0;
-        draw_rectangle(
-            10.0,
-            10.0,
-            MAX_HEALTH * health_unit + 4.0,
-            health_unit + 4.0,
-            COLOR_UI_DARKER,
-        );
-        draw_rectangle(
-            12.0,
-            12.0,
-            player_health * health_unit,
-            health_unit,
-            COLOR_PLAYER,
-        );
-
+        draw_map(tile_size, screen_tiles, &map);
+        draw_player(tile_size, player);
+        draw_health_ui(player_health);
         if player_health <= 0.0 {
-            let window_width = 200.0;
-            let window = Rect::new(
-                screen_width() * 0.5 - window_width * 0.5,
-                screen_height() * 0.4,
-                window_width,
-                150.0,
-            );
-            draw_rect(window, COLOR_UI_BG);
-            draw_rect_lines(window, 2.0, COLOR_UI_DARKER);
-            let text_anchor = Anchor::top_center(screen_width() * 0.5, screen_height() * 0.5);
-            let text = TextRect::new("You died", text_anchor, FONT_SIZE);
-            text.render_text(BLACK);
-            let button_anchor = Anchor::center_below(text.rect, 0.0, 10.0);
-            let mut retry = create_button("Retry", button_anchor);
-            if retry.interact().is_clicked() {
-                map = Map::new(screen_tiles, player);
-                player_health = MAX_HEALTH;
-            }
-            retry.render(&STYLE);
+            draw_respawn_ui(screen_tiles, player, &mut player_health, &mut map);
         }
         frame = (frame + 1) % 10000;
         next_frame().await
     }
-}
-
-fn create_button(text: &str, anchor: Anchor) -> Button {
-    Button::new_generic(
-        text,
-        anchor,
-        FONT_SIZE,
-        measure_text,
-        draw_text,
-        render_button,
-        Box::new(InputMacroquad),
-    )
-}
-
-fn pixel_to_tile(x: Pixels, y: Pixels, tile_size: Pixels2) -> Coord2 {
-    Coord2::new((x / tile_size.x) as Coord, (y / tile_size.y) as Coord)
-}
-fn tile_to_pixel(x: Coord, y: Coord, tile_size: Pixels2) -> Pixels2 {
-    Pixels2::new(x as Pixels * tile_size.x, y as Pixels * tile_size.y)
 }
 
 fn window_conf() -> Conf {
@@ -186,23 +111,82 @@ fn window_conf() -> Conf {
     }
 }
 
-const fn color_from_hex(mut hex: u32) -> Color {
-    let a = (hex & 0xFF) as u8;
-    hex >>= 8;
-    let b = (hex & 0xFF) as u8;
-    hex >>= 8;
-    let g = (hex & 0xFF) as u8;
-    hex >>= 8;
-    let r = (hex & 0xFF) as u8;
-    color_from_rgba(r, g, b, a)
+fn draw_map(tile_size: Vec2, screen_tiles: Coord2, map: &Map) {
+    for i_x in 0..screen_tiles.x {
+        for i_y in 0..screen_tiles.y {
+            let tile = map.get(Coord2::new(i_x, i_y));
+            let pixel = tile_to_pixel(i_x, i_y, tile_size);
+            match tile {
+                Tile::Wall => {
+                    draw_rectangle(pixel.x, pixel.y, tile_size.x, tile_size.y, COLOR_WALL)
+                }
+                Tile::Monster => {
+                    let top = pixel + Vec2::new(tile_size.x * 0.5, tile_size.y * 0.2);
+                    let left = pixel + Vec2::new(tile_size.x * 0.2, tile_size.y * 0.8);
+                    let right = pixel + Vec2::new(tile_size.x * 0.8, tile_size.y * 0.8);
+                    draw_triangle(top, left, right, COLOR_MONSTER);
+                }
+                _ => {}
+            };
+        }
+    }
 }
 
-pub const fn color_from_rgba(r: u8, g: u8, b: u8, a: u8) -> Color {
-    Color::new(
-        r as f32 / 255.,
-        g as f32 / 255.,
-        b as f32 / 255.,
-        a as f32 / 255.,
+fn draw_player(tile_size: Vec2, player: UVec2) {
+    let mut pixel = tile_to_pixel(player.x, player.y, tile_size);
+    pixel += tile_size * 0.5; // circle position is the center
+    draw_circle(pixel.x, pixel.y, 10.0, COLOR_PLAYER);
+}
+
+fn draw_health_ui(player_health: f32) {
+    let health_unit: Pixels = 20.0;
+    draw_rectangle(
+        10.0,
+        10.0,
+        MAX_HEALTH * health_unit + 4.0,
+        health_unit + 4.0,
+        COLOR_UI_DARKER,
+    );
+    draw_rectangle(
+        12.0,
+        12.0,
+        player_health * health_unit,
+        health_unit,
+        COLOR_PLAYER,
+    );
+}
+
+fn draw_respawn_ui(screen_tiles: Coord2, player: UVec2, player_health: &mut f32, map: &mut Map) {
+    let window_width = 200.0;
+    let window = Rect::new(
+        screen_width() * 0.5 - window_width * 0.5,
+        screen_height() * 0.4,
+        window_width,
+        150.0,
+    );
+    draw_rect(window, COLOR_UI_BG);
+    draw_rect_lines(window, 2.0, COLOR_UI_DARKER);
+    let text_anchor = Anchor::top_center(screen_width() * 0.5, screen_height() * 0.5);
+    let text = TextRect::new("You died", text_anchor, FONT_SIZE);
+    text.render_text(BLACK);
+    let button_anchor = Anchor::center_below(text.rect, 0.0, 10.0);
+    let mut retry = create_button("Retry", button_anchor);
+    if retry.interact().is_clicked() {
+        *map = Map::new(screen_tiles, player);
+        *player_health = MAX_HEALTH;
+    }
+    retry.render(&STYLE);
+}
+
+fn create_button(text: &str, anchor: Anchor) -> Button {
+    Button::new_generic(
+        text,
+        anchor,
+        FONT_SIZE,
+        measure_text,
+        draw_text,
+        render_button,
+        Box::new(InputMacroquad),
     )
 }
 
@@ -227,4 +211,31 @@ pub fn draw_panel_border(rect: Rect, interaction: Interaction, style: &Interacti
         Interaction::None => style.at_rest,
     };
     draw_rect_lines(rect, 2.0, color)
+}
+
+fn pixel_to_tile(x: Pixels, y: Pixels, tile_size: Pixels2) -> Coord2 {
+    Coord2::new((x / tile_size.x) as Coord, (y / tile_size.y) as Coord)
+}
+fn tile_to_pixel(x: Coord, y: Coord, tile_size: Pixels2) -> Pixels2 {
+    Pixels2::new(x as Pixels * tile_size.x, y as Pixels * tile_size.y)
+}
+
+const fn color_from_hex(mut hex: u32) -> Color {
+    let a = (hex & 0xFF) as u8;
+    hex >>= 8;
+    let b = (hex & 0xFF) as u8;
+    hex >>= 8;
+    let g = (hex & 0xFF) as u8;
+    hex >>= 8;
+    let r = (hex & 0xFF) as u8;
+    color_from_rgba(r, g, b, a)
+}
+
+pub const fn color_from_rgba(r: u8, g: u8, b: u8, a: u8) -> Color {
+    Color::new(
+        r as f32 / 255.,
+        g as f32 / 255.,
+        b as f32 / 255.,
+        a as f32 / 255.,
+    )
 }
