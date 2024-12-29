@@ -2,6 +2,11 @@ mod map;
 
 use crate::map::Tile;
 use crate::map::{Coord, Coord2, Map};
+use juquad::draw::{draw_rect, draw_rect_lines};
+use juquad::input::input_macroquad::InputMacroquad;
+use juquad::widgets::anchor::Anchor;
+use juquad::widgets::button::{Button, Interaction, InteractionStyle, Style};
+use juquad::widgets::text::TextRect;
 use macroquad::prelude::*;
 
 const DEFAULT_WINDOW_WIDTH: i32 = 800;
@@ -11,11 +16,34 @@ const DEFAULT_WINDOW_TITLE: &str = "Dream Maze";
 type Pixels = f32;
 type Pixels2 = Vec2;
 
-// https://supercolorpalette.com/?scp=G0-hsl-E4A84E-B2DF49-45D945-41D2A7-3E93CC
+// https://supercolorpalette.com/?scp=G0-hsl-E4A84E-B2DF49-45D945-41D2A7-3E93CC-483BC4-9F3DB8-AB3F75
 const COLOR_BACKGROUND: Color = color_from_hex(0x3E93CCFF);
 const COLOR_WALL: Color = color_from_hex(0xE4A84EFF);
 const COLOR_PLAYER: Color = color_from_hex(0x45D945FF);
 const COLOR_MONSTER: Color = color_from_hex(0x9F3DB8FF);
+
+const COLOR_UI_BG: Color = color_from_hex(0xf9e1ffFF);
+const COLOR_UI_LIGHTER: Color = color_from_hex(0xCB9FD5FF);
+const COLOR_UI: Color = color_from_hex(0x9C4CAEFF);
+const COLOR_UI_DARKER: Color = color_from_hex(0x4F2759FF);
+const FONT_SIZE: f32 = 16.0;
+const STYLE: Style = Style {
+    text_color: InteractionStyle {
+        at_rest: COLOR_UI_BG,
+        hovered: COLOR_UI_DARKER,
+        pressed: COLOR_UI_LIGHTER,
+    },
+    bg_color: InteractionStyle {
+        at_rest: COLOR_UI,
+        hovered: COLOR_UI_LIGHTER,
+        pressed: COLOR_UI_DARKER,
+    },
+    border_color: InteractionStyle {
+        at_rest: COLOR_UI,
+        hovered: COLOR_UI_DARKER,
+        pressed: DARKGRAY,
+    },
+};
 
 const MAX_HEALTH: f32 = 5.0;
 
@@ -93,7 +121,7 @@ async fn main() {
             10.0,
             MAX_HEALTH * health_unit + 4.0,
             health_unit + 4.0,
-            DARKGRAY,
+            COLOR_UI_DARKER,
         );
         draw_rectangle(
             12.0,
@@ -103,9 +131,42 @@ async fn main() {
             COLOR_PLAYER,
         );
 
+        if player_health <= 0.0 {
+            let window_width = 200.0;
+            let window = Rect::new(
+                screen_width() * 0.5 - window_width * 0.5,
+                screen_height() * 0.4,
+                window_width,
+                150.0,
+            );
+            draw_rect(window, COLOR_UI_BG);
+            draw_rect_lines(window, 2.0, COLOR_UI_DARKER);
+            let text_anchor = Anchor::top_center(screen_width() * 0.5, screen_height() * 0.5);
+            let text = TextRect::new("You died", text_anchor, FONT_SIZE);
+            text.render_text(BLACK);
+            let button_anchor = Anchor::center_below(text.rect, 0.0, 10.0);
+            let mut retry = create_button("Retry", button_anchor);
+            if retry.interact().is_clicked() {
+                map = Map::new(screen_tiles, player);
+                player_health = MAX_HEALTH;
+            }
+            retry.render(&STYLE);
+        }
         frame = (frame + 1) % 10000;
         next_frame().await
     }
+}
+
+fn create_button(text: &str, anchor: Anchor) -> Button {
+    Button::new_generic(
+        text,
+        anchor,
+        FONT_SIZE,
+        measure_text,
+        draw_text,
+        render_button,
+        Box::new(InputMacroquad),
+    )
 }
 
 fn pixel_to_tile(x: Pixels, y: Pixels, tile_size: Pixels2) -> Coord2 {
@@ -143,4 +204,27 @@ pub const fn color_from_rgba(r: u8, g: u8, b: u8, a: u8) -> Color {
         b as f32 / 255.,
         a as f32 / 255.,
     )
+}
+
+pub fn render_button(interaction: Interaction, text_rect: &TextRect, style: &Style) {
+    let (bg_color, text_color) = match interaction {
+        Interaction::Clicked | Interaction::Pressing => {
+            (style.bg_color.pressed, style.text_color.pressed)
+        }
+        Interaction::Hovered => (style.bg_color.hovered, style.text_color.hovered),
+        Interaction::None => (style.bg_color.at_rest, style.text_color.at_rest),
+    };
+    let rect = text_rect.rect;
+    draw_rect(rect, bg_color);
+    draw_panel_border(rect, interaction, &style.border_color);
+    text_rect.render_text(text_color);
+}
+
+pub fn draw_panel_border(rect: Rect, interaction: Interaction, style: &InteractionStyle) {
+    let color = match interaction {
+        Interaction::Clicked | Interaction::Pressing => style.pressed,
+        Interaction::Hovered => style.hovered,
+        Interaction::None => style.at_rest,
+    };
+    draw_rect_lines(rect, 2.0, color)
 }

@@ -51,10 +51,6 @@ impl Map {
         map
     }
 
-    pub fn is_wall(&self, x: Coord, y: Coord) -> bool {
-        self.get(Coord2::new(x, y)) == Tile::Wall
-    }
-
     pub fn move_down(&mut self) {
         self.move_to(DOWN);
     }
@@ -176,7 +172,7 @@ impl Map {
         0 <= x && x < self.size().x as CoordDiff
     }
     /// returns the direction of pos->target and whether that path is unobstructed
-    fn can_view(&self, mut pos: Coord2, mut target: Coord2) -> (CoordDiff2, bool) {
+    fn can_view(&self, mut pos: Coord2, target: Coord2) -> (CoordDiff2, bool) {
         assert_ne!(pos, target);
         assert!(pos.x == target.x || pos.y == target.y);
         if pos.x == target.x {
@@ -211,29 +207,6 @@ impl Map {
             Tile::Monster
         }
     }
-}
-
-fn add_coord(tiles: &Vec<Vec<Tile>>, pos: Coord2, diff: CoordDiff2) -> Coord2 {
-    let size = size(tiles);
-    let unsigned_diff = Coord2::new(
-        (diff.x + size.x as CoordDiff) as Coord,
-        (diff.y + size.y as CoordDiff) as Coord,
-    );
-    (pos + unsigned_diff) % size
-}
-fn get_raw_mut(tiles: &mut Vec<Vec<Tile>>, x: Coord, y: Coord) -> &mut Tile {
-    tiles.index_mut(x as usize).index_mut(y as usize)
-}
-fn get_mut(tiles: &mut Vec<Vec<Tile>>, pos: Coord2, offset: Coord2) -> &mut Tile {
-    let Coord2 {
-        x: size_x,
-        y: size_y,
-    } = size(tiles);
-    get_raw_mut(
-        tiles,
-        (pos.x + offset.x) % size_x,
-        (pos.y + offset.y) % size_y,
-    )
 }
 fn size(tiles: &Vec<Vec<Tile>>) -> Coord2 {
     Coord2::new(tiles.len() as Coord, tiles[0].len() as Coord)
