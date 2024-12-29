@@ -56,13 +56,20 @@ async fn main() {
     let player = screen_tiles / 2;
     let mut player_health = MAX_HEALTH;
     let mut map = Map::new(screen_tiles, player);
+    let mut paused = false;
     let mut frame = 0;
     loop {
         clear_background(LIGHTGRAY);
-        let end_of_map = tile_to_pixel(screen_tiles.x, screen_tiles.y, tile_size);
-        draw_rectangle(0.0, 0.0, end_of_map.x, end_of_map.y, COLOR_BACKGROUND);
         if is_key_down(KeyCode::Escape) {
             break;
+        }
+        if is_key_pressed(KeyCode::Space) {
+            paused = !paused;
+        }
+        if paused {
+            draw_paused_ui(&mut paused);
+            next_frame().await;
+            continue;
         }
         if is_key_pressed(KeyCode::Down) {
             map.move_down()
@@ -90,11 +97,23 @@ async fn main() {
             }
         }
 
+        let end_of_map = tile_to_pixel(screen_tiles.x, screen_tiles.y, tile_size);
+        draw_rectangle(0.0, 0.0, end_of_map.x, end_of_map.y, COLOR_BACKGROUND);
         draw_map(tile_size, screen_tiles, &map);
         draw_player(tile_size, player);
         draw_health_ui(player_health);
         if player_health <= 0.0 {
             draw_respawn_ui(screen_tiles, player, &mut player_health, &mut map);
+        }
+
+        if is_key_down(KeyCode::F3) {
+            draw_text(
+                &format!(" FPS: {}", get_fps()),
+                0.0,
+                screen_height() - FONT_SIZE * 0.5,
+                FONT_SIZE,
+                BLACK,
+            );
         }
         frame = (frame + 1) % 10000;
         next_frame().await
@@ -155,7 +174,27 @@ fn draw_health_ui(player_health: f32) {
         COLOR_PLAYER,
     );
 }
+fn draw_paused_ui(paused: &mut bool) {
+    let window_width = 220.0;
+    let window = Rect::new(
+        screen_width() * 0.5 - window_width * 0.5,
+        screen_height() * 0.4,
+        window_width,
+        125.0,
+    );
+    draw_rect(window, COLOR_UI_BG);
+    draw_rect_lines(window, 2.0, COLOR_UI_DARKER);
+    let text_anchor = Anchor::top_center(screen_width() * 0.5, screen_height() * 0.45);
+    let text = TextRect::new("Paused", text_anchor, FONT_SIZE);
+    text.render_text(COLOR_UI_DARKER);
 
+    let button_anchor = Anchor::center_below(text.rect, 0.0, 20.0);
+    let mut resume = create_button("Resume (Press Space)", button_anchor);
+    if resume.interact().is_clicked() {
+        *paused = false;
+    }
+    resume.render(&STYLE);
+}
 fn draw_respawn_ui(screen_tiles: Coord2, player: UVec2, player_health: &mut f32, map: &mut Map) {
     let window_width = 200.0;
     let window = Rect::new(
@@ -166,10 +205,10 @@ fn draw_respawn_ui(screen_tiles: Coord2, player: UVec2, player_health: &mut f32,
     );
     draw_rect(window, COLOR_UI_BG);
     draw_rect_lines(window, 2.0, COLOR_UI_DARKER);
-    let text_anchor = Anchor::top_center(screen_width() * 0.5, screen_height() * 0.5);
+    let text_anchor = Anchor::top_center(screen_width() * 0.5, screen_height() * 0.475);
     let text = TextRect::new("You died", text_anchor, FONT_SIZE);
-    text.render_text(BLACK);
-    let button_anchor = Anchor::center_below(text.rect, 0.0, 10.0);
+    text.render_text(COLOR_UI_DARKER);
+    let button_anchor = Anchor::center_below(text.rect, 0.0, 20.0);
     let mut retry = create_button("Retry", button_anchor);
     if retry.interact().is_clicked() {
         *map = Map::new(screen_tiles, player);
