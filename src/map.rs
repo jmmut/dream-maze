@@ -7,10 +7,10 @@ pub type Coord2 = UVec2;
 pub type CoordDiff = i32;
 pub type CoordDiff2 = IVec2;
 
-const DOWN: CoordDiff2 = CoordDiff2::new(0, 1);
-const UP: CoordDiff2 = CoordDiff2::new(0, -1);
-const LEFT: CoordDiff2 = CoordDiff2::new(-1, 0);
-const RIGHT: CoordDiff2 = CoordDiff2::new(1, 0);
+pub const DOWN: CoordDiff2 = CoordDiff2::new(0, 1);
+pub const UP: CoordDiff2 = CoordDiff2::new(0, -1);
+pub const LEFT: CoordDiff2 = CoordDiff2::new(-1, 0);
+pub const RIGHT: CoordDiff2 = CoordDiff2::new(1, 0);
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Tile {
@@ -51,19 +51,19 @@ impl Map {
         map
     }
 
-    pub fn move_down(&mut self) {
-        self.move_to(DOWN);
+    pub fn move_down(&mut self) -> bool {
+        self.move_to(DOWN)
     }
-    pub fn move_up(&mut self) {
-        self.move_to(UP);
+    pub fn move_up(&mut self) -> bool {
+        self.move_to(UP)
     }
-    pub fn move_right(&mut self) {
-        self.move_to(RIGHT);
+    pub fn move_right(&mut self) -> bool {
+        self.move_to(RIGHT)
     }
-    pub fn move_left(&mut self) {
-        self.move_to(LEFT);
+    pub fn move_left(&mut self) -> bool {
+        self.move_to(LEFT)
     }
-    pub fn move_to(&mut self, diff: CoordDiff2) {
+    pub fn move_to(&mut self, diff: CoordDiff2) -> bool {
         if self.get_rel(self.player, diff) != Tile::Wall {
             for i_y in 0..diff.y {
                 self.replace_row(i_y)
@@ -77,7 +77,10 @@ impl Map {
             for i_x in 0..-diff.x {
                 self.replace_column(self.size().x as CoordDiff - i_x - 1);
             }
-            self.offset = self.add_coord(self.offset, diff)
+            self.offset = self.add_coord(self.offset, diff);
+            true
+        } else {
+            false
         }
     }
 
@@ -95,7 +98,6 @@ impl Map {
             *self.get_mut(Coord2::new(i_x, i_y)) = Self::generate_tile();
         }
     }
-
     pub fn get(&self, pos: Coord2) -> Tile {
         let Coord2 {
             x: size_x,
@@ -110,10 +112,7 @@ impl Map {
         let mut staring_monsters = Vec::new();
         for (i_x, column) in self.tiles.iter().enumerate() {
             for (i_y, tile) in column.iter().enumerate() {
-                let monster = self.add_coord(
-                    Coord2::new(i_x as u32, i_y as u32),
-                    -CoordDiff2::new(self.offset.x as i32, self.offset.y as i32),
-                );
+                let monster = self.raw_to_coord(i_x as u32, i_y as u32);
                 if *tile == Tile::Monster {
                     if (self.player.x == monster.x) != (self.player.y == monster.y) {
                         staring_monsters.push(monster);
@@ -132,6 +131,13 @@ impl Map {
                 }
             }
         }
+    }
+
+    fn raw_to_coord(&self, i_x: u32, i_y: u32) -> Coord2 {
+        self.add_coord(
+            Coord2::new(i_x, i_y),
+            -CoordDiff2::new(self.offset.x as i32, self.offset.y as i32),
+        )
     }
 }
 impl Map {

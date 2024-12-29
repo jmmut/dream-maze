@@ -1,13 +1,14 @@
 mod map;
 
-use crate::map::Tile;
 use crate::map::{Coord, Coord2, Map};
+use crate::map::{CoordDiff, CoordDiff2, Tile, DOWN, LEFT, RIGHT, UP};
 use juquad::draw::{draw_rect, draw_rect_lines};
 use juquad::input::input_macroquad::InputMacroquad;
 use juquad::widgets::anchor::Anchor;
 use juquad::widgets::button::{Button, Interaction, InteractionStyle, Style};
 use juquad::widgets::text::TextRect;
 use macroquad::prelude::*;
+use macroquad::rand::rand;
 
 const DEFAULT_WINDOW_WIDTH: i32 = 800;
 const DEFAULT_WINDOW_HEIGHT: i32 = 600;
@@ -19,6 +20,7 @@ type Pixels2 = Vec2;
 // https://supercolorpalette.com/?scp=G0-hsl-E4A84E-B2DF49-45D945-41D2A7-3E93CC-483BC4-9F3DB8-AB3F75
 const COLOR_BACKGROUND: Color = color_from_hex(0x3E93CCFF);
 const COLOR_WALL: Color = color_from_hex(0xE4A84EFF);
+const COLOR_DOOR: Color = color_from_hex(0x7C351DFF);
 const COLOR_PLAYER: Color = color_from_hex(0x45D945FF);
 const COLOR_MONSTER: Color = color_from_hex(0x9F3DB8FF);
 
@@ -46,6 +48,7 @@ const STYLE: Style = Style {
 };
 
 const MAX_HEALTH: f32 = 5.0;
+const REQUIRED_DOORS: i32 = 4;
 
 #[macroquad::main(window_conf)]
 async fn main() {
@@ -56,6 +59,9 @@ async fn main() {
     let player = screen_tiles / 2;
     let mut player_health = MAX_HEALTH;
     let mut map = Map::new(screen_tiles, player);
+    let mut accumulated_pos = CoordDiff2::new(0, 0);
+    let mut next_door = calculate_rand_accumulated_pos(accumulated_pos, player, screen_tiles);
+    let mut doors_parts_collected = 0;
     let mut paused = false;
     let mut frame = 0;
     loop {
@@ -72,16 +78,24 @@ async fn main() {
             continue;
         }
         if is_key_pressed(KeyCode::Down) {
-            map.move_down()
+            if map.move_down() {
+                accumulated_pos += DOWN;
+            }
         }
         if is_key_pressed(KeyCode::Up) {
-            map.move_up()
+            if map.move_up() {
+                accumulated_pos += UP;
+            }
         }
         if is_key_pressed(KeyCode::Left) {
-            map.move_left()
+            if map.move_left() {
+                accumulated_pos += LEFT;
+            }
         }
         if is_key_pressed(KeyCode::Right) {
-            map.move_right()
+            if map.move_right() {
+                accumulated_pos += RIGHT;
+            }
         }
         if is_mouse_button_released(MouseButton::Left) {
             let click = Vec2::from(mouse_position());
@@ -90,10 +104,17 @@ async fn main() {
             println!("tile at {:?} is {:?}", clicked_tile, tile);
         }
 
+        let player_tile = map.get(map.player);
         if (frame + 1) % 60 == 0 {
             map.advance();
-            if map.get(map.player) == Tile::Monster {
+            if player_tile == Tile::Monster {
                 player_health = 0.0_f32.max(player_health - 1.0);
+            }
+        }
+        if accumulated_pos == next_door {
+            doors_parts_collected += 1;
+            if doors_parts_collected < REQUIRED_DOORS {
+                next_door = calculate_rand_accumulated_pos(accumulated_pos, player, screen_tiles);
             }
         }
 
@@ -101,9 +122,20 @@ async fn main() {
         draw_rectangle(0.0, 0.0, end_of_map.x, end_of_map.y, COLOR_BACKGROUND);
         draw_map(tile_size, screen_tiles, &map);
         draw_player(tile_size, player);
+        draw_door(tile_size, player, accumulated_pos, next_door);
+
         draw_health_ui(player_health);
         if player_health <= 0.0 {
             draw_respawn_ui(screen_tiles, player, &mut player_health, &mut map);
+        }
+        if doors_parts_collected >= 4 {
+            draw_game_won(
+                screen_tiles,
+                player,
+                &mut player_health,
+                &mut map,
+                &mut doors_parts_collected,
+            );
         }
 
         if is_key_down(KeyCode::F3) {
@@ -120,6 +152,14 @@ async fn main() {
     }
 }
 
+fn draw_door(tile_size: Vec2, player: Coord2, accumulated_pos: CoordDiff2, next_door: CoordDiff2) {
+    let door_pos = next_door - accumulated_pos + to_signed(player);
+    let mut pixel = tile_to_pixel(door_pos.x as Coord, door_pos.y as Coord, tile_size);
+    pixel += tile_size * 0.25;
+    let door_size = tile_size * 0.5;
+    draw_rectangle(pixel.x, pixel.y, door_size.x, door_size.y, COLOR_DOOR);
+}
+
 fn window_conf() -> Conf {
     Conf {
         window_title: DEFAULT_WINDOW_TITLE.to_owned(),
@@ -128,6 +168,32 @@ fn window_conf() -> Conf {
         high_dpi: true,
         ..Default::default()
     }
+}
+
+fn calculate_rand_accumulated_pos(
+    accumulated_pos: CoordDiff2,
+    player: Coord2,
+    screen_tiles: Coord2,
+) -> CoordDiff2 {
+    let area = screen_tiles.x * screen_tiles.y;
+    let i = (rand() % area) as i32;
+    scalar_to_around_accumulated_pos(accumulated_pos, player, screen_tiles, i)
+}
+
+fn scalar_to_around_accumulated_pos(
+    accumulated_pos: CoordDiff2,
+    player: Coord2,
+    screen_tiles: Coord2,
+    i: i32,
+) -> CoordDiff2 {
+    let door_pos_unsigned = CoordDiff2::new(i % screen_tiles.x as i32, i / screen_tiles.x as i32);
+    let player = to_signed(player);
+    let door_pos = door_pos_unsigned - player + accumulated_pos;
+    door_pos
+}
+
+fn to_signed(pos: Coord2) -> CoordDiff2 {
+    CoordDiff2::new(pos.x as CoordDiff, pos.y as CoordDiff)
 }
 
 fn draw_map(tile_size: Vec2, screen_tiles: Coord2, map: &Map) {
@@ -145,7 +211,7 @@ fn draw_map(tile_size: Vec2, screen_tiles: Coord2, map: &Map) {
                     let right = pixel + Vec2::new(tile_size.x * 0.8, tile_size.y * 0.8);
                     draw_triangle(top, left, right, COLOR_MONSTER);
                 }
-                _ => {}
+                Tile::Floor => {}
             };
         }
     }
@@ -192,6 +258,35 @@ fn draw_paused_ui(paused: &mut bool) {
     let mut resume = create_button("Resume (Press Space)", button_anchor);
     if resume.interact().is_clicked() {
         *paused = false;
+    }
+    resume.render(&STYLE);
+}
+fn draw_game_won(
+    screen_tiles: Coord2,
+    player: UVec2,
+    player_health: &mut f32,
+    map: &mut Map,
+    doors_collected: &mut i32,
+) {
+    let window_width = 220.0;
+    let window = Rect::new(
+        screen_width() * 0.5 - window_width * 0.5,
+        screen_height() * 0.4,
+        window_width,
+        125.0,
+    );
+    draw_rect(window, COLOR_UI_BG);
+    draw_rect_lines(window, 2.0, COLOR_UI_DARKER);
+    let text_anchor = Anchor::top_center(screen_width() * 0.5, screen_height() * 0.45);
+    let text = TextRect::new("You won!", text_anchor, FONT_SIZE);
+    text.render_text(COLOR_UI_DARKER);
+
+    let button_anchor = Anchor::center_below(text.rect, 0.0, 20.0);
+    let mut resume = create_button("Restart", button_anchor);
+    if resume.interact().is_clicked() {
+        *map = Map::new(screen_tiles, player);
+        *player_health = MAX_HEALTH;
+        *doors_collected = 0;
     }
     resume.render(&STYLE);
 }
@@ -277,4 +372,29 @@ pub const fn color_from_rgba(r: u8, g: u8, b: u8, a: u8) -> Color {
         b as f32 / 255.,
         a as f32 / 255.,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_generate_door() {
+        let screen_tiles = Coord2::new(4, 10);
+        assert_eq!(to_pos(0, screen_tiles), CoordDiff2::new(98, 195));
+        assert_eq!(to_pos(1, screen_tiles), CoordDiff2::new(99, 195));
+        assert_eq!(
+            to_pos((screen_tiles.x * screen_tiles.y) as i32 - 1, screen_tiles),
+            CoordDiff2::new(101, 204)
+        )
+    }
+
+    fn to_pos(i: i32, screen_tiles: UVec2) -> CoordDiff2 {
+        scalar_to_around_accumulated_pos(
+            CoordDiff2::new(100, 200),
+            Coord2::new(2, 5),
+            screen_tiles,
+            i,
+        )
+    }
 }
