@@ -122,7 +122,7 @@ async fn main() {
         draw_rectangle(0.0, 0.0, end_of_map.x, end_of_map.y, COLOR_BACKGROUND);
         draw_map(tile_size, screen_tiles, &map);
         draw_player(tile_size, player);
-        draw_door(tile_size, player, accumulated_pos, next_door);
+        draw_door(tile_size, player, screen_tiles, accumulated_pos, next_door);
 
         draw_health_ui(player_health);
         if player_health <= 0.0 {
@@ -152,12 +152,24 @@ async fn main() {
     }
 }
 
-fn draw_door(tile_size: Vec2, player: Coord2, accumulated_pos: CoordDiff2, next_door: CoordDiff2) {
+fn draw_door(
+    tile_size: Pixels2,
+    player: Coord2,
+    screen_tiles: Coord2,
+    accumulated_pos: CoordDiff2,
+    next_door: CoordDiff2,
+) {
     let door_pos = next_door - accumulated_pos + to_signed(player);
-    let mut pixel = tile_to_pixel(door_pos.x as Coord, door_pos.y as Coord, tile_size);
-    pixel += tile_size * 0.25;
-    let door_size = tile_size * 0.5;
-    draw_rectangle(pixel.x, pixel.y, door_size.x, door_size.y, COLOR_DOOR);
+    if door_pos.x >= 0
+        && door_pos.x < screen_tiles.x as CoordDiff
+        && door_pos.y >= 0
+        && door_pos.y < screen_tiles.y as CoordDiff
+    {
+        let mut pixel = tile_to_pixel(door_pos.x as Coord, door_pos.y as Coord, tile_size);
+        pixel += tile_size * 0.25;
+        let door_size = tile_size * 0.5;
+        draw_rectangle(pixel.x, pixel.y, door_size.x, door_size.y, COLOR_DOOR);
+    }
 }
 
 fn window_conf() -> Conf {
