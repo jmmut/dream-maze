@@ -4,6 +4,7 @@ use crate::map::{Coord, Coord2, Map};
 use crate::map::{CoordDiff, CoordDiff2, Tile, DOWN, LEFT, RIGHT, UP};
 use juquad::draw::{draw_rect, draw_rect_lines};
 use juquad::input::input_macroquad::InputMacroquad;
+use juquad::input::input_trait::InputTrait;
 use juquad::widgets::anchor::Anchor;
 use juquad::widgets::button::{Button, Interaction, InteractionStyle, Style};
 use juquad::widgets::text::TextRect;
@@ -125,6 +126,7 @@ async fn main() {
         draw_door(tile_size, player, screen_tiles, accumulated_pos, next_door);
 
         draw_health_ui(player_health);
+        draw_doors_ui(&mut doors_parts_collected);
         if player_health <= 0.0 {
             draw_respawn_ui(screen_tiles, player, &mut player_health, &mut map);
         }
@@ -237,20 +239,58 @@ fn draw_player(tile_size: Vec2, player: UVec2) {
 
 fn draw_health_ui(player_health: f32) {
     let health_unit: Pixels = 20.0;
+    let thickness = 1.0;
     draw_rectangle(
         10.0,
         10.0,
-        MAX_HEALTH * health_unit + 4.0,
-        health_unit + 4.0,
+        MAX_HEALTH * health_unit + thickness * 2.0,
+        health_unit + thickness * 2.0,
         COLOR_UI_DARKER,
     );
     draw_rectangle(
-        12.0,
-        12.0,
+        10.0 + thickness,
+        10.0 + thickness,
         player_health * health_unit,
         health_unit,
         COLOR_PLAYER,
     );
+}
+fn draw_doors_ui(door_parts_collected_mut: &mut i32) {
+    let door_parts_collected = *door_parts_collected_mut;
+    let door_grid: Pixels = 20.0;
+    let door_part: Pixels = 15.0;
+    let pad = door_grid - door_part;
+    let ui_start_x = screen_width() - door_grid * 2.0 - 10.0;
+    let ui_start_y = 10.0;
+    let rect = Rect::new(ui_start_x, ui_start_y, door_grid * 2.0, door_grid * 2.0);
+    draw_rect(rect, COLOR_UI_LIGHTER);
+    draw_rect_lines(rect, 2.0, COLOR_UI_DARKER);
+    let draw_door = |x: Pixels, y: Pixels| {
+        draw_rectangle(
+            ui_start_x + x,
+            ui_start_y + y,
+            door_part,
+            door_part,
+            COLOR_DOOR,
+        );
+    };
+    if door_parts_collected > 0 {
+        draw_door(pad, pad);
+    }
+    if door_parts_collected > 1 {
+        draw_door(door_grid, pad);
+    }
+    if door_parts_collected > 2 {
+        draw_door(pad, door_grid);
+    }
+    if door_parts_collected > 3 {
+        draw_door(door_grid, door_grid);
+    }
+    // if is_mouse_button_released(MouseButton::Left)
+    //     && rect.contains(Vec2::from(InputMacroquad.mouse_position()))
+    // {
+    //     *door_parts_collected_mut = (*door_parts_collected_mut + 1) % 5;
+    // }
 }
 fn draw_paused_ui(paused: &mut bool) {
     let window_width = 220.0;
