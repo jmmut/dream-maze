@@ -86,7 +86,9 @@ async fn main() {
             paused = !paused;
         }
         if paused {
-            draw_paused_ui(&mut paused);
+            if draw_paused_ui().is_clicked() {
+                paused = false;
+            }
             next_frame().await;
             continue;
         }
@@ -140,10 +142,14 @@ async fn main() {
         draw_health_ui(game_state.player_health);
         draw_doors_ui(&mut game_state.doors_parts_collected);
         if game_state.player_health <= 0.0 {
-            draw_respawn_ui(screen_tiles, player, &mut game_state);
+            if draw_respawn_ui().is_clicked() {
+                game_state = GameState::new(screen_tiles, player);
+            }
         }
         if game_state.doors_parts_collected >= 4 {
-            draw_game_won(screen_tiles, player, &mut game_state);
+            if draw_game_won().is_clicked() {
+                game_state = GameState::new(screen_tiles, player);
+            }
         }
 
         if is_key_down(KeyCode::F3) {
@@ -298,7 +304,7 @@ fn draw_doors_ui(door_parts_collected_mut: &mut i32) {
     //     *door_parts_collected_mut = (*door_parts_collected_mut + 1) % 5;
     // }
 }
-fn draw_paused_ui(paused: &mut bool) {
+fn draw_paused_ui() -> Interaction {
     let window_width = 220.0;
     let window = Rect::new(
         screen_width() * 0.5 - window_width * 0.5,
@@ -314,12 +320,11 @@ fn draw_paused_ui(paused: &mut bool) {
 
     let button_anchor = Anchor::center_below(text.rect, 0.0, 20.0);
     let mut resume = create_button("Resume (Press Space)", button_anchor);
-    if resume.interact().is_clicked() {
-        *paused = false;
-    }
+    resume.interact();
     resume.render(&STYLE);
+    resume.interaction()
 }
-fn draw_game_won(screen_tiles: Coord2, player: UVec2, game_state: &mut GameState) {
+fn draw_game_won() -> Interaction {
     let window_width = 220.0;
     let window = Rect::new(
         screen_width() * 0.5 - window_width * 0.5,
@@ -335,12 +340,11 @@ fn draw_game_won(screen_tiles: Coord2, player: UVec2, game_state: &mut GameState
 
     let button_anchor = Anchor::center_below(text.rect, 0.0, 20.0);
     let mut resume = create_button("Restart", button_anchor);
-    if resume.interact().is_clicked() {
-        *game_state = GameState::new(screen_tiles, player);
-    }
+    resume.interact();
     resume.render(&STYLE);
+    resume.interaction()
 }
-fn draw_respawn_ui(screen_tiles: Coord2, player: UVec2, game_state: &mut GameState) {
+fn draw_respawn_ui() -> Interaction {
     let window_width = 200.0;
     let window = Rect::new(
         screen_width() * 0.5 - window_width * 0.5,
@@ -355,10 +359,9 @@ fn draw_respawn_ui(screen_tiles: Coord2, player: UVec2, game_state: &mut GameSta
     text.render_text(COLOR_UI_DARKER);
     let button_anchor = Anchor::center_below(text.rect, 0.0, 20.0);
     let mut retry = create_button("Retry", button_anchor);
-    if retry.interact().is_clicked() {
-        *game_state = GameState::new(screen_tiles, player);
-    }
+    retry.interact();
     retry.render(&STYLE);
+    retry.interaction()
 }
 
 fn create_button(text: &str, anchor: Anchor) -> Button {
