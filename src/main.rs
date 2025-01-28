@@ -4,7 +4,6 @@ use crate::map::{Coord, Coord2, Map};
 use crate::map::{CoordDiff, CoordDiff2, Tile, DOWN, LEFT, RIGHT, UP};
 use juquad::draw::{draw_rect, draw_rect_lines};
 use juquad::input::input_macroquad::InputMacroquad;
-use juquad::input::input_trait::InputTrait;
 use juquad::widgets::anchor::Anchor;
 use juquad::widgets::button::{Button, Interaction, InteractionStyle, Style};
 use juquad::widgets::text::TextRect;
@@ -51,6 +50,21 @@ const STYLE: Style = Style {
 const MAX_HEALTH: f32 = 5.0;
 const REQUIRED_DOORS: i32 = 4;
 
+pub struct GameState {
+    player_health: f32,
+    map: Map,
+    doors_parts_collected: i32,
+}
+impl GameState {
+    pub fn new(screen_tiles: Coord2, player: Coord2) -> Self {
+        Self {
+            player_health: MAX_HEALTH,
+            map: Map::new(screen_tiles, player),
+            doors_parts_collected: 0,
+        }
+    }
+}
+
 #[macroquad::main(window_conf)]
 async fn main() {
     macroquad::rand::srand(42000);
@@ -58,11 +72,9 @@ async fn main() {
     let screen_tiles = pixel_to_tile(screen_width(), screen_height(), tile_size);
     println!("map size: {:?}", screen_tiles);
     let player = screen_tiles / 2;
-    let mut player_health = MAX_HEALTH;
-    let mut map = Map::new(screen_tiles, player);
+    let mut game_state = GameState::new(screen_tiles, player);
     let mut accumulated_pos = CoordDiff2::new(0, 0);
     let mut next_door = calculate_rand_accumulated_pos(accumulated_pos, player, screen_tiles);
-    let mut doors_parts_collected = 0;
     let mut paused = false;
     let mut frame = 0;
     loop {
@@ -79,65 +91,59 @@ async fn main() {
             continue;
         }
         if is_key_pressed(KeyCode::Down) {
-            if map.move_down() {
+            if game_state.map.move_down() {
                 accumulated_pos += DOWN;
             }
         }
         if is_key_pressed(KeyCode::Up) {
-            if map.move_up() {
+            if game_state.map.move_up() {
                 accumulated_pos += UP;
             }
         }
         if is_key_pressed(KeyCode::Left) {
-            if map.move_left() {
+            if game_state.map.move_left() {
                 accumulated_pos += LEFT;
             }
         }
         if is_key_pressed(KeyCode::Right) {
-            if map.move_right() {
+            if game_state.map.move_right() {
                 accumulated_pos += RIGHT;
             }
         }
         if is_mouse_button_released(MouseButton::Left) {
             let click = Vec2::from(mouse_position());
             let clicked_tile = pixel_to_tile(click.x, click.y, tile_size);
-            let tile = map.get(clicked_tile);
+            let tile = game_state.map.get(clicked_tile);
             println!("tile at {:?} is {:?}", clicked_tile, tile);
         }
 
-        let player_tile = map.get(map.player);
+        let player_tile = game_state.map.get(game_state.map.player);
         if (frame + 1) % 60 == 0 {
-            map.advance();
+            game_state.map.advance();
             if player_tile == Tile::Monster {
-                player_health = 0.0_f32.max(player_health - 1.0);
+                game_state.player_health = 0.0_f32.max(game_state.player_health - 1.0);
             }
         }
         if accumulated_pos == next_door {
-            doors_parts_collected += 1;
-            if doors_parts_collected < REQUIRED_DOORS {
+            game_state.doors_parts_collected += 1;
+            if game_state.doors_parts_collected < REQUIRED_DOORS {
                 next_door = calculate_rand_accumulated_pos(accumulated_pos, player, screen_tiles);
             }
         }
 
         let end_of_map = tile_to_pixel(screen_tiles.x, screen_tiles.y, tile_size);
         draw_rectangle(0.0, 0.0, end_of_map.x, end_of_map.y, COLOR_BACKGROUND);
-        draw_map(tile_size, screen_tiles, &map);
+        draw_map(tile_size, screen_tiles, &game_state.map);
         draw_player(tile_size, player);
         draw_door(tile_size, player, screen_tiles, accumulated_pos, next_door);
 
-        draw_health_ui(player_health);
-        draw_doors_ui(&mut doors_parts_collected);
-        if player_health <= 0.0 {
-            draw_respawn_ui(screen_tiles, player, &mut player_health, &mut map);
+        draw_health_ui(game_state.player_health);
+        draw_doors_ui(&mut game_state.doors_parts_collected);
+        if game_state.player_health <= 0.0 {
+            draw_respawn_ui(screen_tiles, player, &mut game_state);
         }
-        if doors_parts_collected >= 4 {
-            draw_game_won(
-                screen_tiles,
-                player,
-                &mut player_health,
-                &mut map,
-                &mut doors_parts_collected,
-            );
+        if game_state.doors_parts_collected >= 4 {
+            draw_game_won(screen_tiles, player, &mut game_state);
         }
 
         if is_key_down(KeyCode::F3) {
@@ -313,13 +319,7 @@ fn draw_paused_ui(paused: &mut bool) {
     }
     resume.render(&STYLE);
 }
-fn draw_game_won(
-    screen_tiles: Coord2,
-    player: UVec2,
-    player_health: &mut f32,
-    map: &mut Map,
-    doors_collected: &mut i32,
-) {
+fn draw_game_won(screen_tiles: Coord2, player: UVec2, game_state: &mut GameState) {
     let window_width = 220.0;
     let window = Rect::new(
         screen_width() * 0.5 - window_width * 0.5,
@@ -336,13 +336,11 @@ fn draw_game_won(
     let button_anchor = Anchor::center_below(text.rect, 0.0, 20.0);
     let mut resume = create_button("Restart", button_anchor);
     if resume.interact().is_clicked() {
-        *map = Map::new(screen_tiles, player);
-        *player_health = MAX_HEALTH;
-        *doors_collected = 0;
+        *game_state = GameState::new(screen_tiles, player);
     }
     resume.render(&STYLE);
 }
-fn draw_respawn_ui(screen_tiles: Coord2, player: UVec2, player_health: &mut f32, map: &mut Map) {
+fn draw_respawn_ui(screen_tiles: Coord2, player: UVec2, game_state: &mut GameState) {
     let window_width = 200.0;
     let window = Rect::new(
         screen_width() * 0.5 - window_width * 0.5,
@@ -358,8 +356,7 @@ fn draw_respawn_ui(screen_tiles: Coord2, player: UVec2, player_health: &mut f32,
     let button_anchor = Anchor::center_below(text.rect, 0.0, 20.0);
     let mut retry = create_button("Retry", button_anchor);
     if retry.interact().is_clicked() {
-        *map = Map::new(screen_tiles, player);
-        *player_health = MAX_HEALTH;
+        *game_state = GameState::new(screen_tiles, player);
     }
     retry.render(&STYLE);
 }
