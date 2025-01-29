@@ -305,61 +305,54 @@ fn draw_doors_ui(door_parts_collected_mut: &mut i32) {
     // }
 }
 fn draw_paused_ui() -> Interaction {
-    let window_width = 220.0;
-    let window = Rect::new(
-        screen_width() * 0.5 - window_width * 0.5,
-        screen_height() * 0.4,
-        window_width,
-        125.0,
-    );
-    draw_rect(window, COLOR_UI_BG);
-    draw_rect_lines(window, 2.0, COLOR_UI_DARKER);
     let text_anchor = Anchor::top_center(screen_width() * 0.5, screen_height() * 0.45);
     let text = TextRect::new("Paused", text_anchor, FONT_SIZE);
-    text.render_text(COLOR_UI_DARKER);
 
     let button_anchor = Anchor::center_below(text.rect, 0.0, 20.0);
     let mut resume = create_button("Resume (Press Space)", button_anchor);
     resume.interact();
+
+    render_window(text.rect.combine_with(resume.rect()));
+    text.render_text(COLOR_UI_DARKER);
     resume.render(&STYLE);
     resume.interaction()
 }
-fn draw_game_won() -> Interaction {
-    let window_width = 220.0;
+
+fn render_window(content: Rect) {
+    let pad = 30.0;
     let window = Rect::new(
-        screen_width() * 0.5 - window_width * 0.5,
-        screen_height() * 0.4,
-        window_width,
-        125.0,
+        content.x - pad,
+        content.y - pad,
+        content.w + 2.0 * pad,
+        content.h + 2.0 * pad,
     );
     draw_rect(window, COLOR_UI_BG);
     draw_rect_lines(window, 2.0, COLOR_UI_DARKER);
+}
+
+fn draw_game_won() -> Interaction {
     let text_anchor = Anchor::top_center(screen_width() * 0.5, screen_height() * 0.45);
     let text = TextRect::new("You won!", text_anchor, FONT_SIZE);
-    text.render_text(COLOR_UI_DARKER);
 
     let button_anchor = Anchor::center_below(text.rect, 0.0, 20.0);
     let mut resume = create_button("Restart", button_anchor);
     resume.interact();
+
+    render_window(text.rect.combine_with(resume.rect()));
+    text.render_text(COLOR_UI_DARKER);
     resume.render(&STYLE);
     resume.interaction()
 }
 fn draw_respawn_ui() -> Interaction {
-    let window_width = 200.0;
-    let window = Rect::new(
-        screen_width() * 0.5 - window_width * 0.5,
-        screen_height() * 0.4,
-        window_width,
-        150.0,
-    );
-    draw_rect(window, COLOR_UI_BG);
-    draw_rect_lines(window, 2.0, COLOR_UI_DARKER);
     let text_anchor = Anchor::top_center(screen_width() * 0.5, screen_height() * 0.475);
     let text = TextRect::new("You died", text_anchor, FONT_SIZE);
-    text.render_text(COLOR_UI_DARKER);
+
     let button_anchor = Anchor::center_below(text.rect, 0.0, 20.0);
     let mut retry = create_button("Retry", button_anchor);
     retry.interact();
+
+    render_window(text.rect.combine_with(retry.rect()));
+    text.render_text(COLOR_UI_DARKER);
     retry.render(&STYLE);
     retry.interaction()
 }
